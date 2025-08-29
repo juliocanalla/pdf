@@ -6,52 +6,41 @@
   <title>Fusionar PDFs</title>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <style>
-    :root { --bg:#0b1020; --card:#111635; --muted:#9aa6c5; --line:#1e2551; --accent:#4f7cff; }
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:#fff;font-family:system-ui,Segoe UI,Roboto,Arial}
-    .wrap{max-width:880px;margin:40px auto;padding:0 16px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .hdr{padding:18px 22px;border-bottom:1px solid var(--line)} .hdr h1{margin:0;font-size:20px}
-    .body{padding:20px 22px}
-    .muted{color:var(--muted)}
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    body{margin:0;font-family:system-ui;background:#0b1020;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh}
+    .card{background:#111635;border:1px solid #1e2551;border-radius:16px;padding:24px;max-width:700px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+    h1{margin-top:0} .muted{color:#9aa6c5;font-size:14px}
+    .row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
     .btn{background:#1b2460;border:1px solid #2b3aa0;color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer}
-    .btn:hover{filter:brightness(1.05)} .btn:disabled{opacity:.6;cursor:not-allowed}
-    .btn-primary{background:var(--accent);border-color:#6f92ff}
-    .list{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+    .btn:hover{filter:brightness(1.1)} .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-primary{background:#4f7cff;border-color:#6f92ff}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:8px 12px;border-bottom:1px solid #1e2551;text-align:left}
     th{background:#0f1533}
-    tr:last-child td{border-bottom:none}
-    .small{font-size:12px}
+    #downloadLink{margin-top:15px;display:none}
+    #downloadLink a{color:#4f7cff;text-decoration:none;font-weight:bold}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="hdr"><h1>Fusionar PDFs (todo en tu navegador)</h1></div>
-      <div class="body">
-        <p class="muted">Selecciona varios PDFs y presiona <b>Fusionar</b>. El PDF unido se descargará automáticamente.</p>
-        <div class="row">
-          <input id="fileInput" type="file" accept="application/pdf" multiple />
-          <button id="mergeBtn" class="btn btn-primary" disabled>Fusionar</button>
-          <button id="clearBtn" class="btn" disabled>Limpiar</button>
-        </div>
+  <div class="card">
+    <h1>Fusionar PDFs (navegador)</h1>
+    <p class="muted">Sube varios PDFs y genera un link para descargarlos unidos.</p>
 
-        <div id="info" class="small muted" style="margin-top:8px;"></div>
-
-        <div id="list" class="list" style="display:none;margin-top:14px;">
-          <table>
-            <thead><tr><th>Archivo</th><th>Peso</th></tr></thead>
-            <tbody id="tbody"></tbody>
-          </table>
-        </div>
-
-        <p class="small muted" style="margin-top:10px;">
-          Nota: El proceso ocurre localmente en tu navegador (no se suben archivos a ningún servidor). Evita
-          fusionar archivos gigantes en equipos con poca memoria.
-        </p>
-      </div>
+    <div class="row">
+      <input id="fileInput" type="file" accept="application/pdf" multiple />
+      <button id="mergeBtn" class="btn btn-primary" disabled>Fusionar</button>
+      <button id="clearBtn" class="btn" disabled>Limpiar</button>
     </div>
+
+    <div id="info" class="muted"></div>
+
+    <div id="list" style="display:none;">
+      <table>
+        <thead><tr><th>Archivo</th><th>Peso</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="downloadLink"></div>
   </div>
 
 <script>
@@ -61,70 +50,56 @@ const clearBtn = document.getElementById('clearBtn');
 const tbody = document.getElementById('tbody');
 const list = document.getElementById('list');
 const info = document.getElementById('info');
+const downloadDiv = document.getElementById('downloadLink');
 
 let files = [];
 
-function fmtMB(bytes){ return (bytes/1024/1024).toFixed(2) + ' MB'; }
+function fmtMB(b){return (b/1024/1024).toFixed(2)+' MB';}
 
 input.addEventListener('change', () => {
   files = Array.from(input.files || []);
   renderList();
 });
 
-clearBtn.addEventListener('click', () => {
-  input.value = '';
-  files = [];
-  renderList();
+clearBtn.addEventListener('click', ()=>{
+  input.value=''; files=[];
+  renderList(); downloadDiv.style.display='none';
 });
 
 function renderList(){
-  tbody.innerHTML = '';
-  let total = 0;
+  tbody.innerHTML=''; let total=0;
   files.forEach(f=>{
-    total += f.size;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${f.name}</td><td>${fmtMB(f.size)}</td>`;
-    tbody.appendChild(tr);
+    total+=f.size;
+    tbody.innerHTML+=`<tr><td>${f.name}</td><td>${fmtMB(f.size)}</td></tr>`;
   });
-  list.style.display = files.length ? 'block' : 'none';
-  mergeBtn.disabled = files.length === 0;
-  clearBtn.disabled = files.length === 0;
-  info.textContent = files.length ? `Seleccionados: ${files.length} · Total aprox: ${fmtMB(total)}` : '';
+  list.style.display = files.length?'block':'none';
+  mergeBtn.disabled=files.length===0;
+  clearBtn.disabled=files.length===0;
+  info.textContent=files.length?`Seleccionados: ${files.length} · Total: ${fmtMB(total)}`:'';
 }
 
-mergeBtn.addEventListener('click', async () => {
-  if (!files.length) return;
-  mergeBtn.disabled = true;
-  mergeBtn.textContent = 'Fusionando...';
+mergeBtn.addEventListener('click', async ()=>{
+  if(!files.length) return;
+  mergeBtn.textContent='Fusionando...'; mergeBtn.disabled=true;
   try{
-    // Crear PDF destino
     const outPdf = await PDFLib.PDFDocument.create();
-
-    for (const f of files){
+    for(const f of files){
       const buf = await f.arrayBuffer();
       const src = await PDFLib.PDFDocument.load(buf);
       const pages = await outPdf.copyPages(src, src.getPageIndices());
-      pages.forEach(p => outPdf.addPage(p));
+      pages.forEach(p=>outPdf.addPage(p));
     }
-
     const mergedBytes = await outPdf.save();
-    const blob = new Blob([mergedBytes], {type: 'application/pdf'});
+    const blob = new Blob([mergedBytes],{type:'application/pdf'});
     const url = URL.createObjectURL(blob);
 
     const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,12);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fusionado_${stamp}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    downloadDiv.innerHTML = `✅ Listo. <a href="${url}" download="fusionado_${stamp}.pdf">Descargar PDF fusionado</a>`;
+    downloadDiv.style.display='block';
   }catch(err){
-    alert('No se pudo fusionar: ' + err.message);
-    console.error(err);
+    alert('Error: '+err.message); console.error(err);
   }finally{
-    mergeBtn.textContent = 'Fusionar';
-    mergeBtn.disabled = false;
+    mergeBtn.textContent='Fusionar'; mergeBtn.disabled=false;
   }
 });
 </script>
